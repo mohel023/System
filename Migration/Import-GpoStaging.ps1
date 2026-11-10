@@ -12,17 +12,22 @@ if(!(Test-Path -LiteralPath $ExcelPath)){throw "Excel introuvable : $ExcelPath"}
 if(!(Test-Path -LiteralPath $BackupPath)){throw "Dossier backup introuvable : $BackupPath"}
 if($MigrationTable -and !(Test-Path -LiteralPath $MigrationTable)){throw 'Table de migration introuvable'}
 $rows=@(Import-Excel -Path $ExcelPath)
+if(!$rows.Count){throw 'Fichier Excel vide'}
+$columns=@($rows[0].PSObject.Properties.Name)
+foreach($required in @('Name','Final Action','ID')){
+ if($columns -notcontains $required){throw "Colonne Excel manquante : $required"}
+}
 $backups=@(Get-GPOBackup -All -Path $BackupPath)
 $results=@()
 foreach($row in $rows){
  if(([string]$row.'Final Action').Trim() -ine 'To keep'){continue}
- $sourceId=([string]$row.'GPO ID').Trim().Trim('{}')
- $name=([string]$row.'GPO Name').Trim()
+ $sourceId=([string]$row.'ID').Trim().Trim('{}')
+ $name=([string]$row.'Name').Trim()
  $status='Skipped';$targetId='';$detail=''
  try {
   $parsed=[guid]::Empty
   if(![guid]::TryParse($sourceId,[ref]$parsed)){throw "GUID source invalide : $sourceId"}
-  if(!$name){throw 'Colonne GPO Name vide'}
+  if(!$name){throw 'Colonne Name vide'}
   $match=@($backups | Where-Object { $_.GpoId -eq $parsed } | Sort-Object CreationTime -Descending)
   if(!$match.Count){throw 'Aucune sauvegarde pour ce GUID source'}
   $existing=@(Get-GPO -All -Domain $TargetDomain | Where-Object DisplayName -eq $name)
