@@ -17,7 +17,14 @@ $columns=@($rows[0].PSObject.Properties.Name)
 foreach($required in @('Name','Final Action','ID')){
  if($columns -notcontains $required){throw "Colonne Excel manquante : $required"}
 }
-$backups=@(Get-GPOBackup -All -Path $BackupPath)
+$backups = @(Get-ChildItem -LiteralPath $BackupPath -Filter 'bkupInfo.xml' -Recurse -File | ForEach-Object {
+    [xml]$x = Get-Content -LiteralPath $_.FullName
+    [pscustomobject]@{
+        GpoId        = [guid]$x.BackupInst.GPOGuid
+        Id           = [guid]$_.Directory.Name.Trim('{}')
+        CreationTime = [datetime]$x.BackupInst.BackupTime
+    }
+})
 $results=@()
 foreach($row in $rows){
  if(([string]$row.'Final Action').Trim() -ine 'To keep'){continue}
