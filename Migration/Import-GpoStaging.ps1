@@ -22,7 +22,7 @@ $backups = @(Get-ChildItem -LiteralPath $BackupPath -Filter 'bkupInfo.xml' -Recu
     [pscustomobject]@{
         GpoId        = [guid]$x.BackupInst.GPOGuid.InnerText
         Id           = [guid]$_.Directory.Name.Trim('{}')
-        CreationTime = [datetime]$x.BackupInst.BackupTime
+        CreationTime = [datetime]$x.BackupInst.BackupTime.InnerText
     }
 })
 $results=@()
