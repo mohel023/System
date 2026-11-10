@@ -28,14 +28,27 @@ foreach($row in $rows){
   $existing=@(Get-GPO -All -Domain $TargetDomain | Where-Object DisplayName -eq $name)
   if($existing.Count){throw 'Une GPO porte deja ce nom dans le domaine cible : import bloque'}
   if($PSCmdlet.ShouldProcess("$TargetDomain / $name",'Creer GPO non liee et importer parametres')){
-   $p=@{BackupId=$match[0].Id;Path=$BackupPath;TargetName=$name;Domain=$TargetDomain;CreateIfNeeded=$true;Confirm=$false;ErrorAction='Stop'}
-   if($MigrationTable){$p.MigrationTable=$MigrationTable}
-   $created=Import-GPO @p
+   # Creer une GPO neuve et la desactiver AVANT d'importer les parametres.
+   $created=New-GPO -Name $name -Domain $TargetDomain -ErrorAction Stop
    $targetId=$created.Id.ToString()
-   $status='Imported'
-   $detail='GPO non liee creee; verifier references et securite avant activation'
+   try {
+    Set-GPO -Guid $created.Id -Domain $TargetDomain -GpoStatus AllSettingsDisabled -ErrorAction Stop
+    $p=@{BackupId=$match[0].Id;Path=$BackupPath;TargetGuid=$created.Id;Domain=$TargetDomain;ErrorAction='Stop'}
+    if($MigrationTable){$p.MigrationTable=$MigrationTable}
+    Import-GPO @p | Out-Null
+   } finally {
+    # En cas d'echec d'import, tenter quand meme de maintenir la GPO desactivee.
+    Set-GPO -Guid $created.Id -Domain $TargetDomain -GpoStatus AllSettingsDisabled -ErrorAction Stop
+   }
+   $verified=Get-GPO -Guid $created.Id -Domain $TargetDomain -ErrorAction Stop
+   if($verified.GpoStatus -ne 'AllSettingsDisabled'){throw "CRITIQUE: GPO $targetId non desactivee"}
+   $report=[xml](Get-GPOReport -Guid $created.Id -Domain $TargetDomain -ReportType Xml -ErrorAction Stop)
+   $links=@($report.GPO.LinksTo | Where-Object { $_ -and $_.SOMPath })
+   if($links.Count -gt 0){throw "CRITIQUE: GPO $targetId contient $($links.Count) lien(s)"}
+   $status='ImportedDisabled'
+   $detail='AllSettingsDisabled confirme; aucun lien GPO'
   } else {$status='Simulation'}
- } catch {$status='Error';$detail=$_.Exception.Message}
+ } catch {$status='Error';$detail=$_.Exception.Message; if($targetId){$detail += ' | VERIFIER IMMEDIATEMENT GPO cible '+$targetId}}
  $results += [pscustomobject]@{SourceGpoId=$sourceId;Name=$name;TargetGpoId=$targetId;Status=$status;Detail=$detail}
 }
 $results | Export-Csv -LiteralPath $ReportPath -NoTypeInformation -Encoding UTF8
