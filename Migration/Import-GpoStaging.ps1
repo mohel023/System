@@ -20,7 +20,7 @@ foreach($required in @('Name','Final Action','ID')){
 $backups = @(Get-ChildItem -LiteralPath $BackupPath -Filter 'bkupInfo.xml' -Recurse -File | ForEach-Object {
     [xml]$x = Get-Content -LiteralPath $_.FullName
     [pscustomobject]@{
-        GpoId        = [guid]$x.BackupInst.GPOGuid
+        GpoId        = [guid]$x.BackupInst.GPOGuid.InnerText
         Id           = [guid]$_.Directory.Name.Trim('{}')
         CreationTime = [datetime]$x.BackupInst.BackupTime
     }
