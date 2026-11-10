@@ -14,7 +14,7 @@ Windows PowerShell 5.1, RSAT GroupPolicy/ActiveDirectory, droits d'administratio
 Install-Module ImportExcel -Scope CurrentUser
 ```
 
-Le fichier Excel doit avoir les colonnes `GPO ID`, `GPO Name`, `Final Action`. Stocker les backups et l'inventaire hors du depot GitHub public.
+Le fichier Excel doit avoir les colonnes `Name`, `Final Action`, `ID`. Stocker les backups et l'inventaire hors du depot GitHub public.
 
 ## Sur le second PC
 
